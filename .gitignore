@@ -1,0 +1,4 @@
+.stack-work/
+JVM.cabal
+*~
+**.swp
