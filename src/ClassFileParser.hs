@@ -359,6 +359,10 @@ data AttributeInfo =
         sNameIndex :: Word16,
         sLength :: Word32,
         sSignatureIndex :: Word16
+    } |
+    Synthetic_attribute {
+        synNameIndex :: Word16,
+        synLength :: Word32
     }
     deriving (Show)
 
@@ -627,6 +631,12 @@ parseSignature_attribute = do
         sSignatureIndex = signatureIndex
     })
 
+parseSynthetic_attribute :: Get AttributeInfo
+parseSynthetic_attribute = do
+    nameIndex <- getWord16be
+    length <- getWord32be
+    return (Synthetic_attribute { synNameIndex = nameIndex, synLength = length })
+
 parseAttributeInfo :: ConstantPool -> Get AttributeInfo
 parseAttributeInfo constantPool = do
     nameIndex <- lookAhead getWord16be
@@ -644,6 +654,7 @@ parseAttributeInfo constantPool = do
         "InnerClasses" -> parseInnerClasses_attribute
         "EnclosingMethod" -> parseEnclosingMethod_attribute
         "Signature" -> parseSignature_attribute
+        "Synthetic" -> parseSynthetic_attribute
         s -> fail ("Unrecognized attribute name: " ++ (show s))
 
 parseAttributes :: ConstantPool -> Get [AttributeInfo]
