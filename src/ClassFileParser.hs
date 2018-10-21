@@ -354,6 +354,11 @@ data AttributeInfo =
         emLength :: Word32,
         emClassIndex :: Word16,
         emMethodIndex :: Word16
+    } |
+    Signature_attribute {
+        sNameIndex :: Word16,
+        sLength :: Word32,
+        sSignatureIndex :: Word16
     }
     deriving (Show)
 
@@ -611,6 +616,17 @@ parseEnclosingMethod_attribute = do
         emMethodIndex = methodIndex
     })
 
+parseSignature_attribute :: Get AttributeInfo
+parseSignature_attribute = do
+    nameIndex <- getWord16be
+    length <- getWord32be
+    signatureIndex <- getWord16be
+    return (Signature_attribute {
+        sNameIndex = nameIndex,
+        sLength = length,
+        sSignatureIndex = signatureIndex
+    })
+
 parseAttributeInfo :: ConstantPool -> Get AttributeInfo
 parseAttributeInfo constantPool = do
     nameIndex <- lookAhead getWord16be
@@ -627,6 +643,7 @@ parseAttributeInfo constantPool = do
         "Exceptions" -> parseExceptions_attribute
         "InnerClasses" -> parseInnerClasses_attribute
         "EnclosingMethod" -> parseEnclosingMethod_attribute
+        "Signature" -> parseSignature_attribute
         s -> fail ("Unrecognized attribute name: " ++ (show s))
 
 parseAttributes :: ConstantPool -> Get [AttributeInfo]
