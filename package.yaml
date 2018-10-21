@@ -23,6 +23,10 @@ dependencies:
 - base >= 4.7 && < 5
 - binary
 - bytestring
+- containers
+- transformers
+- directory
+- array
 
 library:
   source-dirs: src
