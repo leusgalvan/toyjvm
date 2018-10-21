@@ -2,3 +2,5 @@
 JVM.cabal
 *~
 **.swp
+**.java
+**.class
