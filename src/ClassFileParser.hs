@@ -348,6 +348,12 @@ data AttributeInfo =
         icNameIndex :: Word16,
         icLength :: Word32,
         icClasses :: [InnerClass]
+    } |
+    EnclosingMethod_attribute {
+        emNameIndex :: Word16,
+        emLength :: Word32,
+        emClassIndex :: Word16,
+        emMethodIndex :: Word16
     }
     deriving (Show)
 
@@ -592,6 +598,19 @@ parseInnerClasses_attribute = do
         icClasses = classes
     })
 
+parseEnclosingMethod_attribute :: Get AttributeInfo
+parseEnclosingMethod_attribute = do
+    nameIndex <- getWord16be
+    length <- getWord32be
+    classIndex <- getWord16be
+    methodIndex <- getWord16be
+    return (EnclosingMethod_attribute {
+        emNameIndex = nameIndex,
+        emLength = length,
+        emClassIndex = classIndex,
+        emMethodIndex = methodIndex
+    })
+
 parseAttributeInfo :: ConstantPool -> Get AttributeInfo
 parseAttributeInfo constantPool = do
     nameIndex <- lookAhead getWord16be
@@ -607,6 +626,7 @@ parseAttributeInfo constantPool = do
         "StackMapTable" -> parseStackMapTable_attribute
         "Exceptions" -> parseExceptions_attribute
         "InnerClasses" -> parseInnerClasses_attribute
+        "EnclosingMethod" -> parseEnclosingMethod_attribute
         s -> fail ("Unrecognized attribute name: " ++ (show s))
 
 parseAttributes :: ConstantPool -> Get [AttributeInfo]
