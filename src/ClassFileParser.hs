@@ -278,6 +278,30 @@ data LineNumberTableEntry = LineNumberTableEntry {
 
 type LineNumberTable = [LineNumberTableEntry]
 
+data VerificationTypeInfo = TopVariableInfo { tvTag :: Word8 } |
+    IntegerVariableInfo { ivTag :: Word8 } |
+    FloatVariableInfo { fvTag :: Word8 } |
+    LongVariableInfo { lv :: Word8 } |
+    DoubleVariableInfo { dvTag :: Word8 } |
+    NullVariableInfo { nvTag :: Word8 } |
+    UninitializedThisVariableInfo { utvTag :: Word8 } |
+    ObjectVariableInfo { ovTag :: Word8, ovConstantPoolIndex :: Word16 } |
+    UninitializedVariableInfo { uvTag :: Word8, uvOffset :: Word16 }
+    deriving (Show)
+
+data StackMapTableEntry = SameFrame { sfFrameType :: Word8 } |
+    SameLocals1StackItemFrame { slFrameType :: Word8, slStack :: [VerificationTypeInfo] } |
+    SameLocals1StackItemFrameExtended { sleFrameType :: Word8, sleOffsetDelta :: Word16, 
+                                        sleStack :: [VerificationTypeInfo] } |
+    ChopFrame { cfFrameType :: Word8, cfOffsetDelta :: Word16 } |
+    SameFrameExtended { sfeFrameType :: Word8, sfeOffsetDelta :: Word16 } |
+    AppendFrame { afFrameType :: Word8, afOffsetDelta :: Word16, afLocals :: [VerificationTypeInfo] } |
+    FullFrame { ffFrameType :: Word8, ffOffsetDelta :: Word16, ffLocals :: [VerificationTypeInfo], 
+                ffStack :: [VerificationTypeInfo] }
+    deriving (Show)
+
+type StackMapTable = [StackMapTableEntry]
+
 data AttributeInfo = 
     ConstantValue_attribute {
         cvNameIndex :: Word16, 
@@ -302,6 +326,11 @@ data AttributeInfo =
         sfNameIndex :: Word16,
         sfLength :: Word32,
         sfIndex :: Word16
+    } |
+    StackMapTable_attribute {
+        smNameIndex :: Word16,
+        smLength :: Word32,
+        smTable :: StackMapTable
     }
     deriving (Show)
 
@@ -383,6 +412,132 @@ parseSourceFile_attribute = do
         sfIndex = index
     })
 
+parseTopVariableInfo :: Get VerificationTypeInfo
+parseTopVariableInfo = fmap TopVariableInfo getWord8
+
+parseIntegerVariableInfo :: Get VerificationTypeInfo
+parseIntegerVariableInfo = fmap IntegerVariableInfo getWord8
+
+parseFloatVariableInfo :: Get VerificationTypeInfo
+parseFloatVariableInfo = fmap FloatVariableInfo getWord8
+
+parseDoubleVariableInfo :: Get VerificationTypeInfo
+parseDoubleVariableInfo = fmap DoubleVariableInfo getWord8
+
+parseLongVariableInfo :: Get VerificationTypeInfo
+parseLongVariableInfo = fmap LongVariableInfo getWord8
+
+parseNullVariableInfo :: Get VerificationTypeInfo
+parseNullVariableInfo = fmap NullVariableInfo getWord8
+
+parseUninitializedThisVariableInfo :: Get VerificationTypeInfo
+parseUninitializedThisVariableInfo = fmap UninitializedThisVariableInfo getWord8
+
+parseObjectVariableInfo :: Get VerificationTypeInfo
+parseObjectVariableInfo = do
+    tag <- getWord8
+    constantPoolIndex <- getWord16be
+    return (ObjectVariableInfo { ovTag = tag, ovConstantPoolIndex = constantPoolIndex })
+
+parseUninitializedVariableInfo :: Get VerificationTypeInfo
+parseUninitializedVariableInfo = do
+    tag <- getWord8
+    offset <- getWord16be
+    return (UninitializedVariableInfo { uvTag = tag, uvOffset = offset })
+
+parseVerificationTypeInfo :: Get VerificationTypeInfo
+parseVerificationTypeInfo = do
+    tag <- lookAhead getWord8
+    case tag of
+        0 -> parseTopVariableInfo
+        1 -> parseIntegerVariableInfo
+        2 -> parseFloatVariableInfo
+        3 -> parseDoubleVariableInfo
+        4 -> parseLongVariableInfo
+        5 -> parseNullVariableInfo
+        6 -> parseUninitializedThisVariableInfo
+        7 -> parseObjectVariableInfo
+        8 -> parseUninitializedVariableInfo
+
+parseFullFrame :: Get StackMapTableEntry
+parseFullFrame = do
+    frameType <- getWord8
+    offsetDelta <- getWord16be
+    numberOfLocals <- getWord16be
+    locals <- replicateM (fromIntegral numberOfLocals) parseVerificationTypeInfo
+    numberOfStackItems <- getWord16be
+    stack <- replicateM (fromIntegral numberOfStackItems) parseVerificationTypeInfo
+    return (FullFrame {
+        ffFrameType = frameType,
+        ffOffsetDelta = offsetDelta,
+        ffLocals = locals,
+        ffStack = stack
+    })
+
+parseAppendFrame :: Get StackMapTableEntry
+parseAppendFrame = do
+    frameType <- getWord8
+    offsetDelta <- getWord16be
+    let localsLength = frameType - 251
+    locals <- replicateM (fromIntegral localsLength) parseVerificationTypeInfo
+    return (AppendFrame { afFrameType = frameType, afOffsetDelta = offsetDelta, afLocals = locals })
+
+parseSameFrameExtended :: Get StackMapTableEntry
+parseSameFrameExtended = do
+    frameType <- getWord8
+    offsetDelta <- getWord16be
+    return (SameFrameExtended { sfeFrameType = frameType, sfeOffsetDelta = offsetDelta })
+
+parseChopFrame :: Get StackMapTableEntry
+parseChopFrame = do
+    frameType <- getWord8
+    offsetDelta <- getWord16be
+    return (ChopFrame { cfFrameType = frameType, cfOffsetDelta = offsetDelta } )
+
+parseSameLocals1StackItemFrameExtended :: Get StackMapTableEntry
+parseSameLocals1StackItemFrameExtended = do
+    frameType <- getWord8
+    offsetDelta <- getWord16be
+    stackItem <- parseVerificationTypeInfo
+    return (SameLocals1StackItemFrameExtended { 
+        sleFrameType = frameType, 
+        sleOffsetDelta = offsetDelta, 
+        sleStack = [stackItem] 
+    })
+
+parseSameLocals1StackItemFrame :: Get StackMapTableEntry
+parseSameLocals1StackItemFrame = do
+    frameType <- getWord8
+    stackItem <- parseVerificationTypeInfo
+    return (SameLocals1StackItemFrame { slFrameType = frameType, slStack = [stackItem] })
+
+parseSameFrame :: Get StackMapTableEntry
+parseSameFrame = fmap SameFrame getWord8
+
+parseStackMapTableEntry :: Get StackMapTableEntry
+parseStackMapTableEntry = do
+    frameType <- lookAhead getWord8
+    if 0 <= frameType && frameType < 64 then parseSameFrame
+    else if 64 <= frameType && frameType < 128 then parseSameLocals1StackItemFrame
+    else if 247 == frameType then parseSameLocals1StackItemFrameExtended
+    else if 248 <= frameType && frameType <= 250 then parseChopFrame
+    else if 251 == frameType then parseSameFrameExtended
+    else if 252 <= frameType && frameType < 255 then parseAppendFrame
+    else if 255 == frameType then parseFullFrame
+    else fail ("Unrecognized frame type: " ++ (show frameType))    
+
+parseStackMapTable_attribute :: Get AttributeInfo
+parseStackMapTable_attribute = do
+    nameIndex <- getWord16be
+    length <- getWord32be
+    numberOfEntries <- getWord16be
+    stackMapTable <- replicateM (fromIntegral numberOfEntries) parseStackMapTableEntry
+    return (StackMapTable_attribute {
+        smNameIndex = nameIndex,
+        smLength = length,
+        smTable = stackMapTable
+    })
+
 parseAttributeInfo :: ConstantPool -> Get AttributeInfo
 parseAttributeInfo constantPool = do
     nameIndex <- lookAhead getWord16be
@@ -395,6 +550,7 @@ parseAttributeInfo constantPool = do
         "Code" -> parseCode_attribute constantPool
         "LineNumberTable" -> parseLineNumberTable_attribute
         "SourceFile" -> parseSourceFile_attribute
+        "StackMapTable" -> parseStackMapTable_attribute
         s -> fail ("Unrecognized attribute name: " ++ (show s))
 
 parseAttributes :: ConstantPool -> Get [AttributeInfo]
