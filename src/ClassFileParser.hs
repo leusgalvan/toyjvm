@@ -302,6 +302,13 @@ data StackMapTableEntry = SameFrame { sfFrameType :: Word8 } |
 
 type StackMapTable = [StackMapTableEntry]
 
+data InnerClass = InnerClass {
+    icInnerClassInfoIndex :: Word16,
+    icOuterClassInfoIndex :: Word16,
+    icInnerNameIndex :: Word16,
+    icInnerClassAccessFlags :: AccessFlags
+} deriving (Show)
+
 data AttributeInfo = 
     ConstantValue_attribute {
         cvNameIndex :: Word16, 
@@ -336,6 +343,11 @@ data AttributeInfo =
         eNameIndex :: Word16,
         eLength :: Word32,
         eIndexTable :: [Word16]
+    } |
+    InnerClasses_attribute {
+        icNameIndex :: Word16,
+        icLength :: Word32,
+        icClasses :: [InnerClass]
     }
     deriving (Show)
 
@@ -555,6 +567,31 @@ parseExceptions_attribute = do
         eIndexTable = indexTable
     })
 
+parseInnerClass :: Get InnerClass
+parseInnerClass = do
+    innerClassInfoIndex <- getWord16be
+    outerClassInfoIndex <- getWord16be
+    innerNameIndex <- getWord16be
+    innerClassAccessFlags <- parseAccessFlags
+    return (InnerClass {
+        icInnerClassInfoIndex = innerClassInfoIndex,
+        icOuterClassInfoIndex = outerClassInfoIndex,
+        icInnerNameIndex = innerNameIndex,
+        icInnerClassAccessFlags = innerClassAccessFlags
+    })
+
+parseInnerClasses_attribute :: Get AttributeInfo
+parseInnerClasses_attribute = do
+    nameIndex <- getWord16be
+    length <- getWord32be
+    numberOfClasses <- getWord16be
+    classes <- replicateM (fromIntegral numberOfClasses) parseInnerClass
+    return (InnerClasses_attribute {
+        icNameIndex = nameIndex,
+        icLength = length,
+        icClasses = classes
+    })
+
 parseAttributeInfo :: ConstantPool -> Get AttributeInfo
 parseAttributeInfo constantPool = do
     nameIndex <- lookAhead getWord16be
@@ -569,6 +606,7 @@ parseAttributeInfo constantPool = do
         "SourceFile" -> parseSourceFile_attribute
         "StackMapTable" -> parseStackMapTable_attribute
         "Exceptions" -> parseExceptions_attribute
+        "InnerClasses" -> parseInnerClasses_attribute
         s -> fail ("Unrecognized attribute name: " ++ (show s))
 
 parseAttributes :: ConstantPool -> Get [AttributeInfo]
