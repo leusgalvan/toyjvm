@@ -331,6 +331,11 @@ data AttributeInfo =
         smNameIndex :: Word16,
         smLength :: Word32,
         smTable :: StackMapTable
+    } |
+    Exceptions_attribute {
+        eNameIndex :: Word16,
+        eLength :: Word32,
+        eIndexTable :: [Word16]
     }
     deriving (Show)
 
@@ -538,6 +543,18 @@ parseStackMapTable_attribute = do
         smTable = stackMapTable
     })
 
+parseExceptions_attribute :: Get AttributeInfo
+parseExceptions_attribute = do
+    nameIndex <- getWord16be
+    length <- getWord32be
+    numberOfExceptions <- getWord16be
+    indexTable <- replicateM (fromIntegral numberOfExceptions) getWord16be
+    return (Exceptions_attribute {
+        eNameIndex = nameIndex,
+        eLength = length,
+        eIndexTable = indexTable
+    })
+
 parseAttributeInfo :: ConstantPool -> Get AttributeInfo
 parseAttributeInfo constantPool = do
     nameIndex <- lookAhead getWord16be
@@ -551,6 +568,7 @@ parseAttributeInfo constantPool = do
         "LineNumberTable" -> parseLineNumberTable_attribute
         "SourceFile" -> parseSourceFile_attribute
         "StackMapTable" -> parseStackMapTable_attribute
+        "Exceptions" -> parseExceptions_attribute
         s -> fail ("Unrecognized attribute name: " ++ (show s))
 
 parseAttributes :: ConstantPool -> Get [AttributeInfo]
