@@ -1,11 +1,14 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
 module ClassFile(
+    findMainMethod,
     Version,
     ClassFile(..),
     Tag,
     showTag,
     CpInfo(..),
     ConstantPool, 
-    getCpInfoAtOffset,
+    getCpInfoAtIndex,
     buildPool,
     AccessFlags,
     ExceptionTableEntry(..),
@@ -24,6 +27,7 @@ module ClassFile(
 import Data.Word
 import Data.ByteString.Lazy
 import qualified Data.Array as A
+import qualified Data.List as L
 
 type Version = Int
 data ClassFile = ClassFile {
@@ -38,6 +42,10 @@ data ClassFile = ClassFile {
     methods :: [MethodInfo],
     attributes :: [AttributeInfo]
 } deriving (Show)
+
+findMainMethod :: ClassFile -> Maybe MethodInfo
+findMainMethod (ClassFile {constantPool, methods}) = 
+    L.find (isMain constantPool) methods
 
 type Tag = Word8
 
@@ -73,8 +81,12 @@ data CpInfo = CONSTANT_Utf8_info Tag Word16 ByteString |
     deriving Show
 
 type ConstantPool = A.Array Int CpInfo
-getCpInfoAtOffset :: ConstantPool -> Int -> CpInfo
-getCpInfoAtOffset = (A.!) 
+
+getCpInfoAtIndex :: ConstantPool -> Int -> CpInfo
+getCpInfoAtIndex = (A.!) 
+
+utf8InfoAsString :: CpInfo -> String
+utf8InfoAsString (CONSTANT_Utf8_info _ _ byteString) = show byteString
 
 buildPool :: Int -> [CpInfo] -> ConstantPool
 buildPool n xs = A.listArray (1, n-1) xs
@@ -199,3 +211,9 @@ data MethodInfo = MethodInfo {
     miDescriptorIndex :: Word16,
     miAttributes :: [AttributeInfo]
 } deriving (Show)
+
+methodName :: ConstantPool -> MethodInfo -> String
+methodName cp = utf8InfoAsString . (getCpInfoAtIndex cp) . fromIntegral . miNameIndex
+
+isMain :: ConstantPool -> MethodInfo -> Bool
+isMain cp mi = methodName cp mi == "main"

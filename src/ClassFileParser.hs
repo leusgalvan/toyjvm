@@ -35,9 +35,9 @@ parseClassFile = do
         majorVersion = fromIntegral majorVersion, 
         constantPool = constantPool,
         accessFlags = accessFlags, 
-        thisClass = getCpInfoAtOffset constantPool (fromIntegral thisClass), 
-        superClass = getCpInfoAtOffset constantPool (fromIntegral superClass),
-        interfaces = fmap ((getCpInfoAtOffset constantPool) . fromIntegral) interfaces,
+        thisClass = getCpInfoAtIndex constantPool (fromIntegral thisClass), 
+        superClass = getCpInfoAtIndex constantPool (fromIntegral superClass),
+        interfaces = fmap ((getCpInfoAtIndex constantPool) . fromIntegral) interfaces,
         fields = fields,
         methods = methods,
         attributes = attributes
@@ -482,7 +482,7 @@ parseSynthetic_attribute = do
 parseAttributeInfo :: ConstantPool -> Get AttributeInfo
 parseAttributeInfo constantPool = do
     nameIndex <- lookAhead getWord16be
-    let attributeCpInfo = getCpInfoAtOffset constantPool (fromIntegral nameIndex)
+    let attributeCpInfo = getCpInfoAtIndex constantPool (fromIntegral nameIndex)
     let attributeName = case attributeCpInfo of
                             CONSTANT_Utf8_info _ _ byteString -> Char8.unpack byteString
                             x -> fail ("Expected entry of type CONSTANT_Utf8_info but got: " ++ (show x))
