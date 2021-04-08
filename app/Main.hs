@@ -11,11 +11,12 @@ import System.Environment
 main :: IO ()
 main = do
     args <- getArgs
-    let mainClass = head args
-    runProg mainClass
+    case args of
+        mainClass:_ -> runProg mainClass
+        [] -> putStrLn "Please provide the main class name"
 
 classNameToPath :: String -> String
-classNameToPath className = "app\\" ++ className ++ ".class"
+classNameToPath className = "app//" ++ className ++ ".class"
 
 runProg :: String -> IO ()
 runProg mainClass = do
