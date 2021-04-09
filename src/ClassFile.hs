@@ -22,8 +22,7 @@ module ClassFile(
     AttributeInfo(..),
     FieldInfo(..),
     MethodInfo(..),
-
-    -- delete
+    methodCode,
     methodName
 ) where
 
@@ -31,6 +30,7 @@ import Data.Word
 import Data.ByteString.Lazy
 import qualified Data.Array as A
 import qualified Data.List as L
+import qualified Data.Maybe as M
 
 type Version = Int
 data ClassFile = ClassFile {
@@ -214,6 +214,11 @@ data MethodInfo = MethodInfo {
     miDescriptorIndex :: Word16,
     miAttributes :: [AttributeInfo]
 } deriving (Show)
+
+methodCode :: ConstantPool -> MethodInfo -> AttributeInfo
+methodCode cp mi = M.fromJust (L.find isCodeAttribute (miAttributes mi))
+    where isCodeAttribute CodeAttribute{} = True
+          isCodeAttribute _ = False
 
 methodName :: ConstantPool -> MethodInfo -> String
 methodName cp = utf8InfoAsString . getCpInfoAtIndex cp . fromIntegral . miNameIndex
