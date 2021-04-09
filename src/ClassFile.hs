@@ -21,7 +21,10 @@ module ClassFile(
     InnerClass(..),
     AttributeInfo(..),
     FieldInfo(..),
-    MethodInfo(..)
+    MethodInfo(..),
+
+    -- delete
+    methodName
 ) where
 
 import Data.Word
@@ -44,7 +47,7 @@ data ClassFile = ClassFile {
 } deriving (Show)
 
 findMainMethod :: ClassFile -> Maybe MethodInfo
-findMainMethod (ClassFile {constantPool, methods}) = 
+findMainMethod ClassFile {constantPool, methods} = 
     L.find (isMain constantPool) methods
 
 type Tag = Word8
@@ -64,20 +67,20 @@ showTag t = case t of
                 11 -> "InterfaceMethodRef"
                 12 -> "NameAndType"
 
-data CpInfo = CONSTANT_Utf8_info Tag Word16 ByteString |
-    CONSTANT_Integer_info Tag Word32 |
-    CONSTANT_Float_info Tag Word32 |
-    CONSTANT_Long_info Tag Word32 Word32 |
-    CONSTANT_Double_info Tag Word32 Word32 |
-    CONSTANT_Class_info Tag Word16 |
-    CONSTANT_String_info Tag Word16 |
-    CONSTANT_Fieldref_info Tag Word16 Word16 |
-    CONSTANT_Methodref_info Tag Word16 Word16 |
-    CONSTANT_InterfaceMethodref_info Tag Word16 Word16 |
-    CONSTANT_NameAndType_info Tag Word16 Word16 |
-    CONSTANT_MethodHandle_info Tag Word8 Word16 |
-    CONSTANT_MethodType_info Tag Word16 |
-    CONSTANT_InvokeDynamic_info Tag Word16 Word16
+data CpInfo = ConstantUtf8Info Tag Word16 ByteString |
+    ConstantIntegerInfo Tag Word32 |
+    ConstantFloatInfo Tag Word32 |
+    ConstantLongInfo Tag Word32 Word32 |
+    ConstantDoubleInfo Tag Word32 Word32 |
+    ConstantClassInfo Tag Word16 |
+    ConstantStringInfo Tag Word16 |
+    ConstantFieldrefInfo Tag Word16 Word16 |
+    ConstantMethodrefInfo Tag Word16 Word16 |
+    ConstantInterfaceMethodrefInfo Tag Word16 Word16 |
+    ConstantNameAndTypeInfo Tag Word16 Word16 |
+    ConstantMethodHandleInfo Tag Word8 Word16 |
+    ConstantMethodTypeInfo Tag Word16 |
+    ConstantInvokeDynamicInfo Tag Word16 Word16
     deriving Show
 
 type ConstantPool = A.Array Int CpInfo
@@ -86,10 +89,10 @@ getCpInfoAtIndex :: ConstantPool -> Int -> CpInfo
 getCpInfoAtIndex = (A.!) 
 
 utf8InfoAsString :: CpInfo -> String
-utf8InfoAsString (CONSTANT_Utf8_info _ _ byteString) = show byteString
+utf8InfoAsString (ConstantUtf8Info _ _ byteString) = L.filter (/='"') (show byteString)
 
 buildPool :: Int -> [CpInfo] -> ConstantPool
-buildPool n xs = A.listArray (1, n-1) xs
+buildPool n = A.listArray (1, n-1)
 
 type AccessFlags = Int
 
@@ -141,12 +144,12 @@ data InnerClass = InnerClass {
 } deriving (Show)
 
 data AttributeInfo = 
-    ConstantValue_attribute {
+    ConstantValueAttribute {
         cvNameIndex :: Word16, 
         cvLength :: Word32, 
         cvIndex :: Word16
     } |
-    Code_attribute {
+    CodeAttribute {
         cNameIndex :: Word16, 
         cLength :: Word32, 
         cMaxStack :: Word16, 
@@ -155,43 +158,43 @@ data AttributeInfo =
         cExceptionTable :: ExceptionTable, 
         cAttributes :: [AttributeInfo]
     } |
-    LineNumberTable_attribute {
+    LineNumberTableAttribute {
         ltNameIndex :: Word16,
         ltLength :: Word32,
         ltLineNumberTable :: LineNumberTable
     } |
-    SourceFile_attribute {
+    SourceFileAttribute {
         sfNameIndex :: Word16,
         sfLength :: Word32,
         sfIndex :: Word16
     } |
-    StackMapTable_attribute {
+    StackMapTableAttribute {
         smNameIndex :: Word16,
         smLength :: Word32,
         smTable :: StackMapTable
     } |
-    Exceptions_attribute {
+    ExceptionsAttribute {
         eNameIndex :: Word16,
         eLength :: Word32,
         eIndexTable :: [Word16]
     } |
-    InnerClasses_attribute {
+    InnerClassesAttribute {
         icNameIndex :: Word16,
         icLength :: Word32,
         icClasses :: [InnerClass]
     } |
-    EnclosingMethod_attribute {
+    EnclosingMethodAttribute {
         emNameIndex :: Word16,
         emLength :: Word32,
         emClassIndex :: Word16,
         emMethodIndex :: Word16
     } |
-    Signature_attribute {
+    SignatureAttribute {
         sNameIndex :: Word16,
         sLength :: Word32,
         sSignatureIndex :: Word16
     } |
-    Synthetic_attribute {
+    SyntheticAttribute {
         synNameIndex :: Word16,
         synLength :: Word32
     }
@@ -213,7 +216,7 @@ data MethodInfo = MethodInfo {
 } deriving (Show)
 
 methodName :: ConstantPool -> MethodInfo -> String
-methodName cp = utf8InfoAsString . (getCpInfoAtIndex cp) . fromIntegral . miNameIndex
+methodName cp = utf8InfoAsString . getCpInfoAtIndex cp . fromIntegral . miNameIndex
 
 isMain :: ConstantPool -> MethodInfo -> Bool
 isMain cp mi = methodName cp mi == "main"

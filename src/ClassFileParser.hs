@@ -15,7 +15,7 @@ import qualified Data.Array as A
 import qualified Data.ByteString.Lazy.Char8 as Char8
 
 debug :: (Show a, Monad m) => String -> a -> m ()
-debug s a = trace (s ++ (show a)) (return ())
+debug s a = trace (s ++ show a) (return ())
 
 parseClassFile :: Get ClassFile
 parseClassFile = do
@@ -37,7 +37,7 @@ parseClassFile = do
         accessFlags = accessFlags, 
         thisClass = getCpInfoAtIndex constantPool (fromIntegral thisClass), 
         superClass = getCpInfoAtIndex constantPool (fromIntegral superClass),
-        interfaces = fmap ((getCpInfoAtIndex constantPool) . fromIntegral) interfaces,
+        interfaces = fmap (getCpInfoAtIndex constantPool . fromIntegral) interfaces,
         fields = fields,
         methods = methods,
         attributes = attributes
@@ -48,23 +48,23 @@ parseMagicNumber = do
     let magicNumber = 0xCAFEBABE
     firstWord <- getWord32be
     if firstWord == magicNumber then return firstWord
-    else fail ("Class file does not start with correct magic number: " ++ (show firstWord))
+    else fail ("Class file does not start with correct magic number: " ++ show firstWord)
 
 parseMajorVersion :: Get Word16
 parseMajorVersion = do
     let (minVersion, maxVersion) = (45, 52)
     version <- getWord16be
     if version >= minVersion && version <= maxVersion then return version
-    else fail ("Major version must be between " ++ (show minVersion) ++
-               " and " ++ (show maxVersion))
+    else fail ("Major version must be between " ++ show minVersion ++
+               " and " ++ show maxVersion)
 
 parseMinorVersion :: Get Word16
 parseMinorVersion = do
     let (minVersion, maxVersion) = (0, 3)
     version <- getWord16be
     if version >= minVersion && version <= maxVersion then return version
-    else fail ("Minor version must be between " ++ (show minVersion) ++
-               " and " ++ (show maxVersion))
+    else fail ("Minor version must be between " ++ show minVersion ++
+               " and " ++ show maxVersion)
         
 parseConstantPoolCount :: Get Word16
 parseConstantPoolCount = getWord16be
@@ -73,114 +73,114 @@ parseCpInfo :: Get CpInfo
 parseCpInfo = do
     tag <- lookAhead getWord8
     case tag of
-        1 -> parseCONSTANT_Utf8_info
-        3 -> parseCONSTANT_Integer_info
-        4 -> parseCONSTANT_Float_info
-        5 -> parseCONSTANT_Long_info
-        6 -> parseCONSTANT_Double_info
-        7 -> parseCONSTANT_Class_info
-        8 -> parseCONSTANT_String_info
-        9 -> parseCONSTANT_Fieldref_info
-        10 -> parseCONSTANT_Methodref_info
-        11 -> parseCONSTANT_InterfaceMethodref_info
-        12 -> parseCONSTANT_NameAndType_info
-        15 -> parseCONSTANT_MethodHandle_info
-        16 -> parseCONSTANT_MethodType_info
-        18 -> parseCONSTANT_InvokeDynamic_info
-        _ -> fail ("Unknown tag: " ++ (show tag))
+        1 -> parseConstantUtf8Info
+        3 -> parseConstantIntegerInfo
+        4 -> parseConstantFloatInfo
+        5 -> parseConstantLongInfo
+        6 -> parseConstantDoubleInfo
+        7 -> parseConstantClassInfo
+        8 -> parseConstantStringInfo
+        9 -> parseConstantFieldrefInfo
+        10 -> parseConstantMethodrefInfo
+        11 -> parseConstantInterfaceMethodrefInfo
+        12 -> parseConstantNameAndTypeInfo
+        15 -> parseConstantMethodHandleInfo
+        16 -> parseConstantMethodTypeInfo
+        18 -> parseConstantInvokeDynamicInfo
+        _ -> fail ("Unknown tag: " ++ show tag)
     
-parseCONSTANT_Utf8_info :: Get CpInfo
-parseCONSTANT_Utf8_info = do
+parseConstantUtf8Info :: Get CpInfo
+parseConstantUtf8Info = do
     tag <- getWord8
     length <- getWord16be
     bytes <- getLazyByteString (fromIntegral length)
-    return (CONSTANT_Utf8_info tag length bytes)
+    return (ConstantUtf8Info tag length bytes)
 
-parseCONSTANT_Integer_info :: Get CpInfo
-parseCONSTANT_Integer_info = do
+parseConstantIntegerInfo :: Get CpInfo
+parseConstantIntegerInfo = do
     tag <- getWord8
     value <- getWord32be
-    return (CONSTANT_Integer_info tag value)
+    return (ConstantIntegerInfo tag value)
 
-parseCONSTANT_Float_info :: Get CpInfo
-parseCONSTANT_Float_info = do
+parseConstantFloatInfo :: Get CpInfo
+parseConstantFloatInfo = do
     tag <- getWord8
     value <- getWord32be
-    return (CONSTANT_Float_info tag value)
+    return (ConstantFloatInfo tag value)
 
-parseCONSTANT_Long_info :: Get CpInfo
-parseCONSTANT_Long_info = do
+parseConstantLongInfo :: Get CpInfo
+parseConstantLongInfo = do
     tag <- getWord8
     highBytes <- getWord32be
     lowBytes <- getWord32be
-    return (CONSTANT_Long_info tag highBytes lowBytes)
+    return (ConstantLongInfo tag highBytes lowBytes)
 
-parseCONSTANT_Double_info :: Get CpInfo
-parseCONSTANT_Double_info = do
+parseConstantDoubleInfo :: Get CpInfo
+parseConstantDoubleInfo = do
     tag <- getWord8
     highBytes <- getWord32be
     lowBytes <- getWord32be
-    return (CONSTANT_Double_info tag highBytes lowBytes)
+    return (ConstantDoubleInfo tag highBytes lowBytes)
 
-parseCONSTANT_Class_info :: Get CpInfo
-parseCONSTANT_Class_info = do
+parseConstantClassInfo :: Get CpInfo
+parseConstantClassInfo = do
     tag <- getWord8
     nameIndex <- getWord16be
-    return (CONSTANT_Class_info tag nameIndex)
+    return (ConstantClassInfo tag nameIndex)
 
-parseCONSTANT_String_info :: Get CpInfo
-parseCONSTANT_String_info = do
+parseConstantStringInfo :: Get CpInfo
+parseConstantStringInfo = do
     tag <- getWord8
     stringIndex <- getWord16be
-    return (CONSTANT_String_info tag stringIndex)
+    return (ConstantStringInfo tag stringIndex)
 
-parseCONSTANT_Fieldref_info :: Get CpInfo
-parseCONSTANT_Fieldref_info = do
+parseConstantFieldrefInfo :: Get CpInfo
+parseConstantFieldrefInfo = do
     tag <- getWord8
     classIndex <- getWord16be
     nameAndTypeIndex <- getWord16be
-    return (CONSTANT_Fieldref_info tag classIndex nameAndTypeIndex)
+    return (ConstantFieldrefInfo tag classIndex nameAndTypeIndex)
 
-parseCONSTANT_Methodref_info :: Get CpInfo
-parseCONSTANT_Methodref_info = do
+parseConstantMethodrefInfo :: Get CpInfo
+parseConstantMethodrefInfo = do
     tag <- getWord8
     classIndex <- getWord16be
     nameAndTypeIndex <- getWord16be
-    return (CONSTANT_Methodref_info tag classIndex nameAndTypeIndex)
+    return (ConstantMethodrefInfo tag classIndex nameAndTypeIndex)
 
-parseCONSTANT_InterfaceMethodref_info :: Get CpInfo
-parseCONSTANT_InterfaceMethodref_info = do
+parseConstantInterfaceMethodrefInfo :: Get CpInfo
+parseConstantInterfaceMethodrefInfo = do
     tag <- getWord8
     classIndex <- getWord16be
     nameAndTypeIndex <- getWord16be
-    return (CONSTANT_InterfaceMethodref_info tag classIndex nameAndTypeIndex)
+    return (ConstantInterfaceMethodrefInfo tag classIndex nameAndTypeIndex)
 
-parseCONSTANT_NameAndType_info :: Get CpInfo
-parseCONSTANT_NameAndType_info = do
+parseConstantNameAndTypeInfo :: Get CpInfo
+parseConstantNameAndTypeInfo = do
     tag <- getWord8
     nameIndex <- getWord16be
     descriptorIndex <- getWord16be
-    return (CONSTANT_NameAndType_info tag nameIndex descriptorIndex)
+    return (ConstantNameAndTypeInfo tag nameIndex descriptorIndex)
 
-parseCONSTANT_MethodHandle_info :: Get CpInfo
-parseCONSTANT_MethodHandle_info = do
+parseConstantMethodHandleInfo :: Get CpInfo
+parseConstantMethodHandleInfo = do
     tag <- getWord8
     referenceKind <- getWord8
     referenceIndex <- getWord16be
-    return (CONSTANT_MethodHandle_info tag referenceKind referenceIndex)
+    return (ConstantMethodHandleInfo tag referenceKind referenceIndex)
 
-parseCONSTANT_MethodType_info :: Get CpInfo
-parseCONSTANT_MethodType_info = do
+parseConstantMethodTypeInfo :: Get CpInfo
+parseConstantMethodTypeInfo = do
     tag <- getWord8
     descriptorIndex <- getWord16be
-    return (CONSTANT_MethodType_info tag descriptorIndex)
+    return (ConstantMethodTypeInfo tag descriptorIndex)
 
-parseCONSTANT_InvokeDynamic_info :: Get CpInfo
-parseCONSTANT_InvokeDynamic_info = do
+parseConstantInvokeDynamicInfo :: Get CpInfo
+parseConstantInvokeDynamicInfo = do
     tag <- getWord8
     bootstrapMethodAttrIndex <- getWord16be
     nameAndTypeIndex <- getWord16be
-    return (CONSTANT_InvokeDynamic_info tag bootstrapMethodAttrIndex nameAndTypeIndex)
+    return (ConstantInvokeDynamicInfo tag bootstrapMethodAttrIndex nameAndTypeIndex)
 
 parseConstantPool :: Get ConstantPool
 parseConstantPool = do
@@ -208,12 +208,12 @@ parseInterfaces = do
 parseFieldsCount :: Get Word16
 parseFieldsCount = getWord16be
 
-parseConstantValue_attribute :: Get AttributeInfo
-parseConstantValue_attribute = do
+parseConstantValueAttribute :: Get AttributeInfo
+parseConstantValueAttribute = do
     nameIndex <- getWord16be
     length <- getWord32be
     constantValueIndex <- getWord16be
-    return (ConstantValue_attribute{
+    return (ConstantValueAttribute{
         cvNameIndex = nameIndex, 
         cvLength = length, 
         cvIndex = constantValueIndex
@@ -232,8 +232,8 @@ parseExceptionTableEntry = do
         etCatchType = catchType
     })
 
-parseCode_attribute :: ConstantPool -> Get AttributeInfo
-parseCode_attribute constantPool = do
+parseCodeAttribute :: ConstantPool -> Get AttributeInfo
+parseCodeAttribute constantPool = do
     nameIndex <- getWord16be
     length <- getWord32be
     maxStack <- getWord16be
@@ -244,7 +244,7 @@ parseCode_attribute constantPool = do
     exceptionTable <- replicateM (fromIntegral exceptionTableLength) parseExceptionTableEntry
     attributesCount <- getWord16be
     attributes <- replicateM (fromIntegral attributesCount) (parseAttributeInfo constantPool)
-    return (Code_attribute {
+    return (CodeAttribute {
         cNameIndex = nameIndex, 
         cLength = length, 
         cMaxStack = maxStack, 
@@ -263,24 +263,24 @@ parseLineNumberTableEntry = do
         ltLineNumber = lineNumber
     })
     
-parseLineNumberTable_attribute :: Get AttributeInfo
-parseLineNumberTable_attribute = do
+parseLineNumberTableAttribute :: Get AttributeInfo
+parseLineNumberTableAttribute = do
     nameIndex <- getWord16be
     length <- getWord32be
     lineNumberTableLength <- getWord16be
     lineNumberTable <- replicateM (fromIntegral lineNumberTableLength) parseLineNumberTableEntry
-    return (LineNumberTable_attribute {
+    return (LineNumberTableAttribute {
         ltNameIndex = nameIndex, 
         ltLength = length, 
         ltLineNumberTable = lineNumberTable
     })
 
-parseSourceFile_attribute :: Get AttributeInfo
-parseSourceFile_attribute = do
+parseSourceFileAttribute :: Get AttributeInfo
+parseSourceFileAttribute = do
     nameIndex <- getWord16be
     length <- getWord32be
     index <- getWord16be
-    return (SourceFile_attribute {
+    return (SourceFileAttribute {
         sfNameIndex = nameIndex,
         sfLength = length,
         sfIndex = index
@@ -398,27 +398,27 @@ parseStackMapTableEntry = do
     else if 251 == frameType then parseSameFrameExtended
     else if 252 <= frameType && frameType < 255 then parseAppendFrame
     else if 255 == frameType then parseFullFrame
-    else fail ("Unrecognized frame type: " ++ (show frameType))    
+    else fail ("Unrecognized frame type: " ++ show frameType)    
 
-parseStackMapTable_attribute :: Get AttributeInfo
-parseStackMapTable_attribute = do
+parseStackMapTableAttribute :: Get AttributeInfo
+parseStackMapTableAttribute = do
     nameIndex <- getWord16be
     length <- getWord32be
     numberOfEntries <- getWord16be
     stackMapTable <- replicateM (fromIntegral numberOfEntries) parseStackMapTableEntry
-    return (StackMapTable_attribute {
+    return (StackMapTableAttribute {
         smNameIndex = nameIndex,
         smLength = length,
         smTable = stackMapTable
     })
 
-parseExceptions_attribute :: Get AttributeInfo
-parseExceptions_attribute = do
+parseExceptionsAttribute :: Get AttributeInfo
+parseExceptionsAttribute = do
     nameIndex <- getWord16be
     length <- getWord32be
     numberOfExceptions <- getWord16be
     indexTable <- replicateM (fromIntegral numberOfExceptions) getWord16be
-    return (Exceptions_attribute {
+    return (ExceptionsAttribute {
         eNameIndex = nameIndex,
         eLength = length,
         eIndexTable = indexTable
@@ -437,67 +437,67 @@ parseInnerClass = do
         icInnerClassAccessFlags = innerClassAccessFlags
     })
 
-parseInnerClasses_attribute :: Get AttributeInfo
-parseInnerClasses_attribute = do
+parseInnerClassesAttribute :: Get AttributeInfo
+parseInnerClassesAttribute = do
     nameIndex <- getWord16be
     length <- getWord32be
     numberOfClasses <- getWord16be
     classes <- replicateM (fromIntegral numberOfClasses) parseInnerClass
-    return (InnerClasses_attribute {
+    return (InnerClassesAttribute {
         icNameIndex = nameIndex,
         icLength = length,
         icClasses = classes
     })
 
-parseEnclosingMethod_attribute :: Get AttributeInfo
-parseEnclosingMethod_attribute = do
+parseEnclosingMethodAttribute :: Get AttributeInfo
+parseEnclosingMethodAttribute = do
     nameIndex <- getWord16be
     length <- getWord32be
     classIndex <- getWord16be
     methodIndex <- getWord16be
-    return (EnclosingMethod_attribute {
+    return (EnclosingMethodAttribute {
         emNameIndex = nameIndex,
         emLength = length,
         emClassIndex = classIndex,
         emMethodIndex = methodIndex
     })
 
-parseSignature_attribute :: Get AttributeInfo
-parseSignature_attribute = do
+parseSignatureAttribute :: Get AttributeInfo
+parseSignatureAttribute = do
     nameIndex <- getWord16be
     length <- getWord32be
     signatureIndex <- getWord16be
-    return (Signature_attribute {
+    return (SignatureAttribute {
         sNameIndex = nameIndex,
         sLength = length,
         sSignatureIndex = signatureIndex
     })
 
-parseSynthetic_attribute :: Get AttributeInfo
-parseSynthetic_attribute = do
+parseSyntheticAttribute :: Get AttributeInfo
+parseSyntheticAttribute = do
     nameIndex <- getWord16be
     length <- getWord32be
-    return (Synthetic_attribute { synNameIndex = nameIndex, synLength = length })
+    return (SyntheticAttribute { synNameIndex = nameIndex, synLength = length })
 
 parseAttributeInfo :: ConstantPool -> Get AttributeInfo
 parseAttributeInfo constantPool = do
     nameIndex <- lookAhead getWord16be
     let attributeCpInfo = getCpInfoAtIndex constantPool (fromIntegral nameIndex)
     let attributeName = case attributeCpInfo of
-                            CONSTANT_Utf8_info _ _ byteString -> Char8.unpack byteString
-                            x -> fail ("Expected entry of type CONSTANT_Utf8_info but got: " ++ (show x))
+                            ConstantUtf8Info _ _ byteString -> Char8.unpack byteString
+                            x -> fail ("Expected entry of type ConstantUtf8Info but got: " ++ show x)
     case attributeName of
-        "ConstantValue" -> parseConstantValue_attribute
-        "Code" -> parseCode_attribute constantPool
-        "LineNumberTable" -> parseLineNumberTable_attribute
-        "SourceFile" -> parseSourceFile_attribute
-        "StackMapTable" -> parseStackMapTable_attribute
-        "Exceptions" -> parseExceptions_attribute
-        "InnerClasses" -> parseInnerClasses_attribute
-        "EnclosingMethod" -> parseEnclosingMethod_attribute
-        "Signature" -> parseSignature_attribute
-        "Synthetic" -> parseSynthetic_attribute
-        s -> fail ("Unrecognized attribute name: " ++ (show s))
+        "ConstantValue" -> parseConstantValueAttribute
+        "Code" -> parseCodeAttribute constantPool
+        "LineNumberTable" -> parseLineNumberTableAttribute
+        "SourceFile" -> parseSourceFileAttribute
+        "StackMapTable" -> parseStackMapTableAttribute
+        "Exceptions" -> parseExceptionsAttribute
+        "InnerClasses" -> parseInnerClassesAttribute
+        "EnclosingMethod" -> parseEnclosingMethodAttribute
+        "Signature" -> parseSignatureAttribute
+        "Synthetic" -> parseSyntheticAttribute
+        s -> fail ("Unrecognized attribute name: " ++ show s)
 
 parseAttributes :: ConstantPool -> Get [AttributeInfo]
 parseAttributes constantPool = do

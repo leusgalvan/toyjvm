@@ -7,6 +7,9 @@ import qualified Data.ByteString.Lazy as BL (readFile)
 import GHC.Word
 import System.Directory
 import System.Environment
+import Execution
+import Text.Pretty.Simple (pPrint)
+import ClassFile
 
 main :: IO ()
 main = do
@@ -24,5 +27,5 @@ runProg mainClass = do
     classFileContents <- BL.readFile classFilepath
     let result = runGetOrFail parseClassFile classFileContents
     case result of
-      Left l  -> putStrLn (show l)
-      Right r -> putStrLn (show r)
+      Left l  -> print l
+      Right (_, _, r) -> execute r >> return ()

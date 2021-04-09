@@ -27,6 +27,8 @@ dependencies:
 - transformers
 - directory
 - array
+- either
+- pretty-simple
 
 library:
   source-dirs: src
