@@ -29,6 +29,7 @@ dependencies:
 - array
 - either
 - pretty-simple
+- monad-loops
 
 library:
   source-dirs: src

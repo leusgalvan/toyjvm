@@ -3,14 +3,14 @@ module Execution(execute) where
 import ClassFile
 import Data.Either.Combinators
 import Text.Pretty.Simple (pPrint)
+import Data.ByteString.Lazy
+import Method
 
 execute :: ClassFile -> IO (Either String ())
 execute classFile =   
     case findMainMethod classFile of
-        Just mainMethod    -> pPrint (methodCode (constantPool classFile) mainMethod) >> executeMethod mainMethod
+        Just mainMethod    -> pPrint (unpack (cCode (methodCode (constantPool classFile) mainMethod))) >> executeMethod (constantPool classFile) mainMethod
         Nothing            -> error "No main method found"
 
--- >>> :t executeMethod
--- executeMethod :: MethodInfo -> IO (Either String ())
-executeMethod :: MethodInfo -> IO (Either String ())
-executeMethod = undefined
+executeMethod :: ConstantPool -> MethodInfo -> IO (Either String ())
+executeMethod cp mi = print (fromMethodInfo cp mi) >> return (Right ())

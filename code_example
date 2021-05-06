@@ -1,0 +1,21 @@
+[ 8   -- iconst_5
+, 60  -- istore_1
+, 178 -- getstatic
+, 0   -- getstatic - indexbyte1
+, 3   -- getstatic - indexbyte2
+, 27  -- iload_1
+, 182 -- invokevirtual
+, 0   -- invokevirtual - indexbyte1
+, 4   -- invokevirtual - indexbyte2
+, 177 -- return
+]
+
+iconst_5: push 5 onto the stack
+istore_1: set the local variable at index 1 in the local variable array to the value 
+          on the top of the stack (and pop it)
+getstatic: get static field from class using two bytes to get an index into the constant pool. The item
+           at this index should be a symbolic reference to the field.
+iload_1: push onto the stack the value of the local variable at index 1 in the local variable array
+invokevirtual: invoke instance method, using two bytes as index into the constant pool to get a symbolic
+               reference to a method. The instance and the arguments are passed in the stack.
+return: return void, emptying operand stack

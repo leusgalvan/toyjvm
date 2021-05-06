@@ -143,6 +143,7 @@ data InnerClass = InnerClass {
     icInnerClassAccessFlags :: AccessFlags
 } deriving (Show)
 
+
 data AttributeInfo = 
     ConstantValueAttribute {
         cvNameIndex :: Word16, 
@@ -220,8 +221,8 @@ methodCode cp mi = M.fromJust (L.find isCodeAttribute (miAttributes mi))
     where isCodeAttribute CodeAttribute{} = True
           isCodeAttribute _ = False
 
-methodName :: ConstantPool -> MethodInfo -> String
-methodName cp = utf8InfoAsString . getCpInfoAtIndex cp . fromIntegral . miNameIndex
+methodName :: ConstantPool -> Word16 -> String
+methodName cp = utf8InfoAsString . getCpInfoAtIndex cp . fromIntegral
 
 isMain :: ConstantPool -> MethodInfo -> Bool
-isMain cp mi = methodName cp mi == "main"
+isMain cp mi = methodName cp (miNameIndex mi) == "main"
