@@ -90,6 +90,7 @@ getCpInfoAtIndex = (A.!)
 
 utf8InfoAsString :: CpInfo -> String
 utf8InfoAsString (ConstantUtf8Info _ _ byteString) = L.filter (/='"') (show byteString)
+utf8InfoAsString _ = error "Should be ConstantUtf8Info"
 
 buildPool :: Int -> [CpInfo] -> ConstantPool
 buildPool n = A.listArray (1, n-1)
@@ -226,3 +227,35 @@ methodName cp = utf8InfoAsString . getCpInfoAtIndex cp . fromIntegral
 
 isMain :: ConstantPool -> MethodInfo -> Bool
 isMain cp mi = methodName cp (miNameIndex mi) == "main"
+
+getFieldClassAndName :: ConstantPool -> Int -> (Word16, Word16)
+getFieldClassAndName cp idx =    
+    case getCpInfoAtIndex cp idx of
+        ConstantFieldrefInfo _ classIndex nameAndTypeIndex -> undefined 
+        _ -> error "Should be a ConstantFieldrefInfo"
+
+getUtf8 :: ConstantPool -> Int -> String
+getUtf8 cp idx = utf8InfoAsString (getCpInfoAtIndex cp idx)
+
+getClassName :: ConstantPool -> Int -> String
+getClassName cp idx = 
+    case getCpInfoAtIndex cp idx of
+        ConstantClassInfo _ nameIndex -> getUtf8 cp (fromIntegral nameIndex)
+        _ -> error "Should be a ConstantClassInfo"
+
+getNameAndDescriptor :: ConstantPool -> Int -> (String, String)
+getNameAndDescriptor cp idx = 
+    case getCpInfoAtIndex cp idx of
+        ConstantNameAndTypeInfo _ nameIndex descriptorIndex -> (
+                getUtf8 cp (fromIntegral nameIndex), 
+                getUtf8 cp (fromIntegral descriptorIndex)
+            ) 
+        _ -> error "Should be a ConstantNameAndTypeInfo"
+
+resolveField cp idx = 
+    let
+        (classNameIdx, nameAndTypeIdx) = getFieldClassAndName cp idx
+        className = getClassName cp (fromIntegral classNameIdx)
+        (fieldName, fieldDescriptor) = getNameAndDescriptor cp (fromIntegral nameAndTypeIdx)
+    in
+        undefined
