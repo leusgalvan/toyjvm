@@ -7,13 +7,13 @@ import Data.ByteString.Lazy as BS
 import Control.Monad.Trans.State as S
 import Data.Binary.Get as G
 import qualified Data.Array as A
+import ClassFile
 
 data Frame = F {
     opStack :: ByteString,
-    localVarArray :: A.Array Int Word32
+    localVarArray :: A.Array Int Word32,
+    constantPool :: ConstantPool
 } deriving Show
-
-type FrameOp = State Frame
 
 pushInt :: Int -> Frame -> Frame
 pushInt n f@F{opStack} = f { opStack = encode n `append` opStack }
